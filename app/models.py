@@ -14,3 +14,16 @@ class TaskResponse(BaseModel):
     completed: bool
 
     model_config = ConfigDict(from_attributes=True)
+
+class UserCreate(BaseModel):
+    username: str
+    email: str
+
+
+class UserResponse(BaseModel):
+    id: int
+    username: str
+    email: str
+
+    class Config:
+        from_attributes = True
