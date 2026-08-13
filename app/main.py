@@ -36,11 +36,26 @@ def root():
     response_model=TaskResponse,
     status_code=status.HTTP_201_CREATED
 )
-def create_task(task: TaskCreate, db: Session = Depends(get_db)):
+def create_task(
+    task: TaskCreate,
+    db: Session = Depends(get_db),
+    current_user: str = Depends(get_current_user)
+):
+    user = db.query(User).filter(
+        User.username == current_user
+    ).first()
+
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail="User not found"
+        )
+
     new_task = TaskDB(
         title=task.title,
         description=task.description,
-        completed=task.completed
+        completed=task.completed,
+        user_id=user.id
     )
 
     db.add(new_task)
@@ -50,60 +65,123 @@ def create_task(task: TaskCreate, db: Session = Depends(get_db)):
     return new_task
 
 @app.get("/tasks", response_model=list[TaskResponse])
-def get_tasks(db: Session = Depends(get_db)):
-    return db.query(TaskDB).all()
+def get_tasks(
+    db: Session = Depends(get_db),
+    current_user: str = Depends(get_current_user)
+):
+    user = db.query(User).filter(
+        User.username == current_user
+    ).first()
+
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail="User not found"
+        )
+
+    tasks = db.query(TaskDB).filter(
+        TaskDB.user_id == user.id
+    ).all()
+
+    return tasks
 
 @app.get("/tasks/{task_id}", response_model=TaskResponse)
-def get_task(task_id: int, db: Session = Depends(get_db)):
-    task = db.query(TaskDB).filter(TaskDB.id == task_id).first()
+def get_task(
+    task_id: int,
+    db: Session = Depends(get_db),
+    current_user: str = Depends(get_current_user)
+):
+    user = db.query(User).filter(
+        User.username == current_user
+    ).first()
 
-    if task is None:
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail="User not found"
+        )
+
+    task = db.query(TaskDB).filter(
+        TaskDB.id == task_id,
+        TaskDB.user_id == user.id
+    ).first()
+
+    if not task:
         raise HTTPException(
             status_code=404,
             detail="Task not found"
-    )
+        )
 
     return task
 
 @app.put("/tasks/{task_id}", response_model=TaskResponse)
 def update_task(
     task_id: int,
-    updated_task: TaskCreate,
-    db: Session = Depends(get_db)
+    task: TaskCreate,
+    db: Session = Depends(get_db),
+    current_user: str = Depends(get_current_user)
 ):
-    task = db.query(TaskDB).filter(TaskDB.id == task_id).first()
+    user = db.query(User).filter(
+        User.username == current_user
+    ).first()
 
-    if task is None:
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail="User not found"
+        )
+
+    existing_task = db.query(TaskDB).filter(
+        TaskDB.id == task_id,
+        TaskDB.user_id == user.id
+    ).first()
+
+    if not existing_task:
         raise HTTPException(
             status_code=404,
             detail="Task not found"
-    )
+        )
 
-    task.title = updated_task.title
-    task.description = updated_task.description
-    task.completed = updated_task.completed
+    existing_task.title = task.title
+    existing_task.description = task.description
+    existing_task.completed = task.completed
 
     db.commit()
-    db.refresh(task)
+    db.refresh(existing_task)
 
-    return task
+    return existing_task
 
 @app.delete("/tasks/{task_id}")
-def delete_task(task_id: int, db: Session = Depends(get_db)):
-    task = db.query(TaskDB).filter(TaskDB.id == task_id).first()
+def delete_task(
+    task_id: int,
+    db: Session = Depends(get_db),
+    current_user: str = Depends(get_current_user)
+):
+    user = db.query(User).filter(
+        User.username == current_user
+    ).first()
 
-    if task is None:
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail="User not found"
+        )
+
+    task = db.query(TaskDB).filter(
+        TaskDB.id == task_id,
+        TaskDB.user_id == user.id
+    ).first()
+
+    if not task:
         raise HTTPException(
             status_code=404,
             detail="Task not found"
-    )
+        )
 
     db.delete(task)
     db.commit()
 
-    return {
-        "message": "Task deleted successfully"
-    }
+    return {"message": "Task deleted successfully"}
 
 @app.post("/users", response_model=UserResponse)
 def create_user(user: UserCreate, db: Session = Depends(get_db)):
