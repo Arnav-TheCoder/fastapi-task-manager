@@ -6,6 +6,7 @@ import Login from "./components/Login";
 
 function App() {
   const [tasks, setTasks] = useState([]);
+  const [filter, setFilter] = useState("all");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [loggedInUser, setLoggedInUser] = useState(
@@ -217,6 +218,18 @@ function App() {
   }
 };
 
+const filteredTasks = tasks.filter((task) => {
+  if (filter === "completed") {
+    return task.completed;
+  }
+
+  if (filter === "pending") {
+    return !task.completed;
+  }
+
+  return true;
+});
+
   return (
     <div className="app">
       <header className="header">
@@ -277,6 +290,19 @@ function App() {
               {error}
             </p>
           )}
+          <div className="task-filters">
+            <button onClick={() => setFilter("all")}>
+              All
+            </button>
+
+            <button onClick={() => setFilter("pending")}>
+              Pending
+            </button>
+
+            <button onClick={() => setFilter("completed")}>
+              Completed
+            </button>
+          </div>
 
           {!loading && !error && tasks.length === 0 && (
             <p className="status-message">
@@ -286,10 +312,10 @@ function App() {
 
           {!loading && !error && tasks.length > 0 && (
             <TaskList
-              tasks={tasks}
+              tasks={filteredTasks}
               onDelete={handleDelete}
               onToggleComplete={handleToggleComplete}
-              onUpdate={handleUpdate} 
+              onUpdate={handleUpdate}
             />
           )}
         </section>
