@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from app.models import TaskCreate, TaskResponse, UserCreate, UserResponse
 from app.database import engine, get_db
 from app.db_models import Base, TaskDB, User
+from app.auth import hash_password
 
 app = FastAPI(
     title="Task Manager API",
@@ -127,7 +128,8 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
 
     new_user = User(
         username=user.username,
-        email=user.email
+        email=user.email,
+        password_hash=hash_password(user.password)
     )
 
     db.add(new_user)
