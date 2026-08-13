@@ -1,12 +1,53 @@
 import { useEffect, useState } from "react";
 import TaskForm from "./components/TaskForm";
 import TaskList from "./components/TaskList";
+import Register from "./components/Register";
+import Login from "./components/Login";
 
 function App() {
   const [tasks, setTasks] = useState([]);
-const [loading, setLoading] = useState(true);
-const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [loggedInUser, setLoggedInUser] = useState(
+    localStorage.getItem("username") || ""
+  );
+  const handleLogin = (token, username) => {
+    localStorage.setItem("token", token);
+    localStorage.setItem("username", username);
+    setLoggedInUser(username);
+  };
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("username");
+    setLoggedInUser("");
+  };
+  const checkAuthentication = async () => {
+    const token = localStorage.getItem("token");
 
+    if (!token) {
+      alert("You are not logged in");
+      return;
+    }
+
+    try {
+      const response = await fetch("http://127.0.0.1:8000/protected", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.detail || "Authentication failed");
+        return;
+      }
+
+      alert(`Authenticated as ${data.username}`);
+    } catch (error) {
+      alert("Could not connect to the server");
+    }
+  };
   useEffect(() => {
   const fetchTasks = async () => {
     try {
@@ -87,6 +128,18 @@ const [error, setError] = useState("");
     <header className="header">
       <div>
         <h1>Task Manager</h1>
+        <Register />
+        <Login onLogin={handleLogin} />
+
+        {loggedInUser && (
+          <div>
+          <p>Logged in as: {loggedInUser}</p>
+          <button onClick={handleLogout}>Logout</button>
+          </div>
+        )}
+        <button onClick={checkAuthentication}>
+          Check Authentication
+        </button>
         <p>Manage your tasks with React, FastAPI and PostgreSQL.</p>
       </div>
 
