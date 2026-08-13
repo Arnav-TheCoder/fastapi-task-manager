@@ -2,11 +2,14 @@ from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from fastapi.security import OAuth2PasswordRequestForm
+from pydantic import BaseModel
+
 
 from app.models import TaskCreate, TaskResponse, UserCreate, UserResponse, UserLogin
 from app.database import engine, get_db
 from app.db_models import Base, TaskDB, User
 from app.auth import hash_password, verify_password, create_access_token, get_current_user
+from app.ai import generate_task_description
 
 app = FastAPI(
     title="Task Manager API",
@@ -30,6 +33,17 @@ def root():
         "message": "Task Manager API is running"
     }
 
+class AISuggestionRequest(BaseModel):
+    title: str
+
+
+@app.post("/ai/suggest-description")
+def suggest_description(request: AISuggestionRequest):
+    description = generate_task_description(request.title)
+
+    return {
+        "description": description
+    }
 
 @app.post(
     "/tasks",

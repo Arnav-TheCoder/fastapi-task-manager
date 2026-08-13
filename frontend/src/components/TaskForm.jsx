@@ -3,6 +3,54 @@ import { useState } from "react";
 function TaskForm({ onTaskCreated }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState("");
+
+  const handleSuggestDescription = async () => {
+    if (!title.trim()) {
+      setAiError("Enter a task title first.");
+      return;
+    }
+
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+      setAiError("Please log in first.");
+      return;
+    }
+
+    setAiLoading(true);
+    setAiError("");
+
+    try {
+      const response = await fetch(
+        "http://127.0.0.1:8000/ai/suggest-description",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            title: title.trim(),
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || "Failed to generate description");
+      }
+
+      setDescription(data.description);
+    } catch (error) {
+      console.error("AI suggestion error:", error);
+      setAiError(error.message);
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -25,8 +73,8 @@ function TaskForm({ onTaskCreated }) {
         Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
-        title,
-        description,
+        title: title.trim(),
+        description: description.trim(),
         completed: false,
       }),
     });
@@ -42,6 +90,7 @@ function TaskForm({ onTaskCreated }) {
 
     setTitle("");
     setDescription("");
+    setAiError("");
   };
 
   return (
@@ -52,6 +101,20 @@ function TaskForm({ onTaskCreated }) {
         value={title}
         onChange={(event) => setTitle(event.target.value)}
       />
+
+      <button
+        type="button"
+        onClick={handleSuggestDescription}
+        disabled={aiLoading}
+      >
+        {aiLoading ? "Generating..." : "✨ Suggest Description"}
+      </button>
+
+      {aiError && (
+        <p className="error-message">
+          {aiError}
+        </p>
+      )}
 
       <textarea
         placeholder="Task description"
