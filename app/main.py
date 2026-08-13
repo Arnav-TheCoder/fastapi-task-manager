@@ -1,11 +1,12 @@
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
+from fastapi.security import OAuth2PasswordRequestForm
 
-from app.models import TaskCreate, TaskResponse, UserCreate, UserResponse
+from app.models import TaskCreate, TaskResponse, UserCreate, UserResponse, UserLogin
 from app.database import engine, get_db
 from app.db_models import Base, TaskDB, User
-from app.auth import hash_password
+from app.auth import hash_password, verify_password, create_access_token, get_current_user
 
 app = FastAPI(
     title="Task Manager API",
@@ -153,3 +154,40 @@ def get_user(user_id: int, db: Session = Depends(get_db)):
         )
 
     return user
+
+@app.post("/login")
+def login(
+    user: OAuth2PasswordRequestForm = Depends(),
+    db: Session = Depends(get_db)
+):
+    db_user = db.query(User).filter(
+        User.username == user.username
+    ).first()
+
+    if not db_user:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid username or password"
+        )
+
+    if not verify_password(user.password, db_user.password_hash):
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid username or password"
+        )
+
+    access_token = create_access_token(db_user.username)
+
+    return {
+        "access_token": access_token,
+        "token_type": "bearer"
+    }
+
+@app.get("/protected")
+def protected_route(
+    current_user: str = Depends(get_current_user)
+):
+    return {
+        "message": "You have access to this protected endpoint!",
+        "username": current_user
+    }
