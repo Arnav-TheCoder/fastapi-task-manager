@@ -6,22 +6,33 @@ import Login from "./components/Login";
 
 function App() {
   const [tasks, setTasks] = useState([]);
-  const [filter, setFilter] = useState("all");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
   const [loggedInUser, setLoggedInUser] = useState(
     localStorage.getItem("username") || ""
   );
 
+  // Day 16 controls
+  const [search, setSearch] = useState("");
+  const [completedFilter, setCompletedFilter] = useState("");
+  const [sortBy, setSortBy] = useState("id");
+  const [order, setOrder] = useState("asc");
+  const [page, setPage] = useState(1);
+  const [limit] = useState(10);
+
   const handleLogin = (token, username) => {
     localStorage.setItem("token", token);
     localStorage.setItem("username", username);
+
     setLoggedInUser(username);
+    setPage(1);
   };
 
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("username");
+
     setLoggedInUser("");
     setTasks([]);
   };
@@ -35,11 +46,14 @@ function App() {
     }
 
     try {
-      const response = await fetch("http://127.0.0.1:8000/protected", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await fetch(
+        "http://127.0.0.1:8000/protected",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
       const data = await response.json();
 
@@ -54,55 +68,83 @@ function App() {
     }
   };
 
-  // Get tasks belonging to the logged-in user
+  // Fetch tasks
   useEffect(() => {
     const fetchTasks = async () => {
-      const token = localStorage.getItem("token");
-
-      if (!token) {
-        setLoading(false);
-        setTasks([]);
-        return;
-      }
+      setLoading(true);
+      setError("");
 
       try {
-        const response = await fetch("http://127.0.0.1:8000/tasks", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+        const token = localStorage.getItem("token");
+
+        if (!token) {
+          setError("Please log in to view your tasks.");
+          setLoading(false);
+          return;
+        }
+
+        const params = new URLSearchParams();
+
+        params.append("page", page);
+        params.append("limit", limit);
+        params.append("sort_by", sortBy);
+        params.append("order", order);
+
+        if (search.trim()) {
+          params.append("search", search.trim());
+        }
+
+        if (completedFilter !== "") {
+          params.append("completed", completedFilter);
+        }
+
+        const response = await fetch(
+          `http://127.0.0.1:8000/tasks?${params.toString()}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
 
         if (!response.ok) {
           throw new Error("Failed to fetch tasks");
         }
 
         const data = await response.json();
+
         setTasks(data);
-        setError("");
       } catch (error) {
         console.error(error);
-        setError("Unable to load tasks. Make sure the API is running.");
+        setError(
+          "Unable to load tasks. Make sure the API is running."
+        );
       } finally {
         setLoading(false);
       }
     };
 
     fetchTasks();
-  }, [loggedInUser]);
+  }, [
+    page,
+    limit,
+    search,
+    completedFilter,
+    sortBy,
+    order,
+  ]);
 
-  // Add newly created task to the UI
+  // Create task
   const handleTaskCreated = (newTask) => {
-    setTasks((currentTasks) => [...currentTasks, newTask]);
+    setTasks((currentTasks) => [
+      newTask,
+      ...currentTasks,
+    ]);
   };
 
   // Delete task
   const handleDelete = async (taskId) => {
     const token = localStorage.getItem("token");
-
-    if (!token) {
-      console.error("User is not authenticated");
-      return;
-    }
 
     try {
       const response = await fetch(
@@ -116,26 +158,23 @@ function App() {
       );
 
       if (!response.ok) {
-        console.error("Failed to delete task");
-        return;
+        throw new Error("Failed to delete task");
       }
 
       setTasks((currentTasks) =>
-        currentTasks.filter((task) => task.id !== taskId)
+        currentTasks.filter(
+          (task) => task.id !== taskId
+        )
       );
     } catch (error) {
-      console.error("Error deleting task:", error);
+      console.error(error);
+      setError("Failed to delete task.");
     }
   };
 
-  // Toggle task completion
+  // Toggle complete
   const handleToggleComplete = async (task) => {
     const token = localStorage.getItem("token");
-
-    if (!token) {
-      console.error("User is not authenticated");
-      return;
-    }
 
     try {
       const response = await fetch(
@@ -155,8 +194,7 @@ function App() {
       );
 
       if (!response.ok) {
-        console.error("Failed to update task");
-        return;
+        throw new Error("Failed to update task");
       }
 
       const updatedTask = await response.json();
@@ -169,79 +207,27 @@ function App() {
         )
       );
     } catch (error) {
-      console.error("Error updating task:", error);
+      console.error(error);
+      setError("Failed to update task.");
     }
   };
 
-  const handleUpdate = async (updatedTask) => {
-  const token = localStorage.getItem("token");
-
-  if (!token) {
-    console.error("User is not authenticated");
-    return false;
-  }
-
-  try {
-    const response = await fetch(
-      `http://127.0.0.1:8000/tasks/${updatedTask.id}`,
-      {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          title: updatedTask.title,
-          description: updatedTask.description,
-          completed: updatedTask.completed,
-        }),
-      }
-    );
-
-    if (!response.ok) {
-      console.error("Failed to update task");
-      return false;
-    }
-
-    const updated = await response.json();
-
-    setTasks((currentTasks) =>
-      currentTasks.map((task) =>
-        task.id === updated.id ? updated : task
-      )
-    );
-
-    return true;
-  } catch (error) {
-    console.error("Error updating task:", error);
-    return false;
-  }
-};
-
-const filteredTasks = tasks.filter((task) => {
-  if (filter === "completed") {
-    return task.completed;
-  }
-
-  if (filter === "pending") {
-    return !task.completed;
-  }
-
-  return true;
-});
-
   return (
     <div className="app">
+
       <header className="header">
         <div>
           <h1>Task Manager</h1>
 
           <Register />
+
           <Login onLogin={handleLogin} />
 
           {loggedInUser && (
             <div>
-              <p>Logged in as: {loggedInUser}</p>
+              <p>
+                Logged in as: {loggedInUser}
+              </p>
 
               <button onClick={handleLogout}>
                 Logout
@@ -254,7 +240,8 @@ const filteredTasks = tasks.filter((task) => {
           </button>
 
           <p>
-            Manage your tasks with React, FastAPI and PostgreSQL.
+            Manage your tasks with React,
+            FastAPI and PostgreSQL.
           </p>
         </div>
 
@@ -265,60 +252,180 @@ const filteredTasks = tasks.filter((task) => {
       </header>
 
       <main>
+
         <section className="form-section">
           <h2>Add a New Task</h2>
-          <TaskForm onTaskCreated={handleTaskCreated} />
+
+          <TaskForm
+            onTaskCreated={handleTaskCreated}
+          />
         </section>
 
         <section className="tasks-section">
+
           <div className="section-header">
             <h2>Your Tasks</h2>
 
             <span>
-              {tasks.filter((task) => task.completed).length} completed
+              {
+                tasks.filter(
+                  (task) => task.completed
+                ).length
+              } completed
             </span>
           </div>
 
+          {/* Day 16 Controls */}
+          <div className="task-controls">
+
+            <input
+              type="text"
+              placeholder="Search tasks..."
+              value={search}
+              onChange={(event) => {
+                setSearch(event.target.value);
+                setPage(1);
+              }}
+            />
+
+            <select
+              value={completedFilter}
+              onChange={(event) => {
+                setCompletedFilter(
+                  event.target.value
+                );
+                setPage(1);
+              }}
+            >
+              <option value="">
+                All Tasks
+              </option>
+
+              <option value="false">
+                Pending
+              </option>
+
+              <option value="true">
+                Completed
+              </option>
+            </select>
+
+            <select
+              value={sortBy}
+              onChange={(event) => {
+                setSortBy(event.target.value);
+                setPage(1);
+              }}
+            >
+              <option value="id">
+                ID
+              </option>
+
+              <option value="title">
+                Title
+              </option>
+
+              <option value="completed">
+                Status
+              </option>
+            </select>
+
+            <select
+              value={order}
+              onChange={(event) => {
+                setOrder(event.target.value);
+                setPage(1);
+              }}
+            >
+              <option value="asc">
+                Ascending
+              </option>
+
+              <option value="desc">
+                Descending
+              </option>
+            </select>
+
+          </div>
+
+          {/* Loading */}
           {loading && (
             <p className="status-message">
               Loading tasks...
             </p>
           )}
 
+          {/* Error */}
           {error && (
             <p className="error-message">
               {error}
             </p>
           )}
-          <div className="task-filters">
-            <button onClick={() => setFilter("all")}>
-              All
-            </button>
 
-            <button onClick={() => setFilter("pending")}>
-              Pending
-            </button>
+          {/* Empty */}
+          {!loading &&
+            !error &&
+            tasks.length === 0 && (
+              <p className="status-message">
+                No tasks found.
+              </p>
+            )}
 
-            <button onClick={() => setFilter("completed")}>
-              Completed
-            </button>
-          </div>
+          {/* Tasks */}
+          {!loading &&
+            !error &&
+            tasks.length > 0 && (
+              <>
+                <TaskList
+                  tasks={tasks}
+                  onDelete={handleDelete}
+                  onToggleComplete={
+                    handleToggleComplete
+                  }
+                />
 
-          {!loading && !error && tasks.length === 0 && (
-            <p className="status-message">
-              No tasks yet. Add your first task above.
-            </p>
-          )}
+                {/* Pagination */}
+                <div className="pagination">
 
-          {!loading && !error && tasks.length > 0 && (
-            <TaskList
-              tasks={filteredTasks}
-              onDelete={handleDelete}
-              onToggleComplete={handleToggleComplete}
-              onUpdate={handleUpdate}
-            />
-          )}
+                  <button
+                    onClick={() =>
+                      setPage(
+                        (currentPage) =>
+                          Math.max(
+                            1,
+                            currentPage - 1
+                          )
+                      )
+                    }
+                    disabled={page === 1}
+                  >
+                    Previous
+                  </button>
+
+                  <span>
+                    Page {page}
+                  </span>
+
+                  <button
+                    onClick={() =>
+                      setPage(
+                        (currentPage) =>
+                          currentPage + 1
+                      )
+                    }
+                    disabled={
+                      tasks.length < limit
+                    }
+                  >
+                    Next
+                  </button>
+
+                </div>
+              </>
+            )}
+
         </section>
+
       </main>
     </div>
   );
