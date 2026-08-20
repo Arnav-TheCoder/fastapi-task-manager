@@ -5,6 +5,8 @@ class TaskCreate(BaseModel):
     title: str
     description: str
     completed: bool = False
+    priority: str | None = "Medium"
+    estimated_time: str | None = None
 
 
 class TaskResponse(BaseModel):
@@ -12,8 +14,11 @@ class TaskResponse(BaseModel):
     title: str
     description: str
     completed: bool
+    priority: str | None = "Medium"
+    estimated_time: str | None = None
 
-    model_config = ConfigDict(from_attributes=True)
+    class Config:
+        from_attributes = True
 
 class UserCreate(BaseModel):
     username: str

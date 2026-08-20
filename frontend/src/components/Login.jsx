@@ -1,85 +1,98 @@
 import { useState } from "react";
+import Input from "./Input";
+import Button from "./Button";
+import Card from "./Card";
 
 function Login({ onLogin }) {
-  const [form, setForm] = useState({
-    username: "",
-    password: "",
-  });
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const [message, setMessage] = useState("");
+  const handleSubmit = async (event) => {
+    event.preventDefault();
 
-  const handleChange = (e) => {
-    setForm({
-      ...form,
-      [e.target.name]: e.target.value,
-    });
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setMessage("");
+    setLoading(true);
+    setError("");
 
     try {
       const formData = new URLSearchParams();
-      formData.append("username", form.username);
-      formData.append("password", form.password);
 
-      const response = await fetch("http://127.0.0.1:8000/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: formData.toString(),
-      });
+      formData.append("username", username);
+      formData.append("password", password);
+
+      const response = await fetch(
+        "http://127.0.0.1:8000/login",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type":
+              "application/x-www-form-urlencoded",
+          },
+          body: formData,
+        }
+      );
 
       const data = await response.json();
 
       if (!response.ok) {
-        setMessage(data.detail || "Login failed");
-        return;
+        throw new Error(
+          data.detail || "Login failed"
+        );
       }
 
-      localStorage.setItem("token", data.access_token);
-      onLogin(data.access_token, form.username);
+      onLogin(data.access_token, username);
 
-      setMessage("Login successful!");
-      setForm({
-        username: "",
-        password: "",
-      });
+      setUsername("");
+      setPassword("");
     } catch (error) {
-      setMessage("Could not connect to the server");
+      console.error(error);
+      setError(error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div>
+    <Card className="auth-card">
       <h2>Login</h2>
 
-      <form onSubmit={handleSubmit}>
-        <input
-          type="text"
-          name="username"
-          placeholder="Username"
-          value={form.username}
-          onChange={handleChange}
+      <form onSubmit={handleSubmit} className="auth-form">
+        <Input
+          label="Username"
+          value={username}
+          onChange={(event) =>
+            setUsername(event.target.value)
+          }
+          placeholder="Enter username"
           required
         />
 
-        <input
+        <Input
+          label="Password"
           type="password"
-          name="password"
-          placeholder="Password"
-          value={form.password}
-          onChange={handleChange}
+          value={password}
+          onChange={(event) =>
+            setPassword(event.target.value)
+          }
+          placeholder="Enter password"
           required
         />
 
-        <button type="submit">Login</button>
-      </form>
+        {error && (
+          <p className="error-message">
+            {error}
+          </p>
+        )}
 
-      {message && <p>{message}</p>}
-    </div>
+        <Button
+          type="submit"
+          disabled={loading}
+        >
+          {loading ? "Logging in..." : "Login"}
+        </Button>
+      </form>
+    </Card>
   );
 }
 

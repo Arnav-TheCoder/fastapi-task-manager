@@ -1,26 +1,26 @@
 import { useState } from "react";
+import Input from "./Input";
+import Button from "./Button";
+import Card from "./Card";
 
 function TaskForm({ onTaskCreated }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+
+  const [loading, setLoading] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
-  const [aiError, setAiError] = useState("");
+  const [aiResult, setAiResult] = useState(null);
+  const [error, setError] = useState("");
 
-  const handleSuggestDescription = async () => {
+  // Generate AI description
+  const handleAISuggestion = async () => {
     if (!title.trim()) {
-      setAiError("Enter a task title first.");
-      return;
-    }
-
-    const token = localStorage.getItem("token");
-
-    if (!token) {
-      setAiError("Please log in first.");
+      setError("Enter a task title first.");
       return;
     }
 
     setAiLoading(true);
-    setAiError("");
+    setError("");
 
     try {
       const response = await fetch(
@@ -29,7 +29,6 @@ function TaskForm({ onTaskCreated }) {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
             title: title.trim(),
@@ -40,92 +39,196 @@ function TaskForm({ onTaskCreated }) {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.detail || "Failed to generate description");
+        throw new Error(
+          data.detail || "AI suggestion failed"
+        );
       }
 
       setDescription(data.description);
     } catch (error) {
-      console.error("AI suggestion error:", error);
-      setAiError(error.message);
+      console.error(error);
+      setError(error.message);
     } finally {
       setAiLoading(false);
     }
   };
 
+  // Analyze task using AI
+  const analyzeTask = async () => {
+    if (!title.trim()) {
+      setError("Enter a task title first.");
+      return;
+    }
+
+    setAiLoading(true);
+    setError("");
+    setAiResult(null);
+
+    try {
+      const response = await fetch(
+        "http://127.0.0.1:8000/ai/analyze-task",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            title: title.trim(),
+            description: description.trim(),
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.detail || "AI analysis failed"
+        );
+      }
+
+      setAiResult(data);
+    } catch (error) {
+      console.error(error);
+      setError(error.message);
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  // Create task
   const handleSubmit = async (event) => {
     event.preventDefault();
 
-    if (!title.trim()) {
-      return;
-    }
+    setLoading(true);
+    setError("");
 
-    const token = localStorage.getItem("token");
+    try {
+      const token = localStorage.getItem("token");
 
-    if (!token) {
-      console.error("User is not authenticated");
-      return;
-    }
+      if (!token) {
+        throw new Error("Please log in first.");
+      }
 
-    const response = await fetch("http://127.0.0.1:8000/tasks", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
+      const taskData = {
         title: title.trim(),
         description: description.trim(),
         completed: false,
-      }),
-    });
+        priority: aiResult?.priority || "Medium",
+        estimated_time:
+          aiResult?.estimated_time || null,
+      };
 
-    if (!response.ok) {
-      console.error("Failed to create task");
-      return;
+      const response = await fetch(
+        "http://127.0.0.1:8000/tasks",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(taskData),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.detail || "Failed to create task"
+        );
+      }
+
+      onTaskCreated(data);
+
+      setTitle("");
+      setDescription("");
+      setAiResult(null);
+    } catch (error) {
+      console.error(error);
+      setError(error.message);
+    } finally {
+      setLoading(false);
     }
-
-    const newTask = await response.json();
-
-    onTaskCreated(newTask);
-
-    setTitle("");
-    setDescription("");
-    setAiError("");
   };
 
   return (
-    <form onSubmit={handleSubmit} className="task-form">
-      <input
-        type="text"
-        placeholder="Task title"
-        value={title}
-        onChange={(event) => setTitle(event.target.value)}
-      />
-
-      <button
-        type="button"
-        onClick={handleSuggestDescription}
-        disabled={aiLoading}
+    <Card>
+      <form
+        onSubmit={handleSubmit}
+        className="task-form"
       >
-        {aiLoading ? "Generating..." : "✨ Suggest Description"}
-      </button>
+        <Input
+          label="Task Title"
+          value={title}
+          onChange={(event) =>
+            setTitle(event.target.value)
+          }
+          placeholder="Enter task title"
+          required
+        />
 
-      {aiError && (
-        <p className="error-message">
-          {aiError}
-        </p>
-      )}
+        <div className="input-group">
+          <label>Description</label>
 
-      <textarea
-        placeholder="Task description"
-        value={description}
-        onChange={(event) => setDescription(event.target.value)}
-      />
+          <textarea
+            value={description}
+            onChange={(event) =>
+              setDescription(event.target.value)
+            }
+            placeholder="Enter task description"
+          />
+        </div>
 
-      <button type="submit">
-        Add Task
-      </button>
-    </form>
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={handleAISuggestion}
+          disabled={aiLoading}
+        >
+          {aiLoading
+            ? "Generating..."
+            : "✨ Generate with AI"}
+        </Button>
+
+        <Button
+          type="button"
+          onClick={analyzeTask}
+          disabled={aiLoading}
+        >
+          {aiLoading
+            ? "Analyzing..."
+            : "🤖 Analyze Task with AI"}
+        </Button>
+
+        {aiResult && (
+          <div className="ai-result">
+            <p>
+              <strong>AI Priority:</strong>{" "}
+              {aiResult.priority}
+            </p>
+
+            <p>
+              <strong>Estimated Time:</strong>{" "}
+              {aiResult.estimated_time}
+            </p>
+          </div>
+        )}
+
+        {error && (
+          <p className="error-message">
+            {error}
+          </p>
+        )}
+
+        <Button
+          type="submit"
+          disabled={loading}
+        >
+          {loading ? "Creating..." : "Add Task"}
+        </Button>
+      </form>
+    </Card>
   );
 }
 

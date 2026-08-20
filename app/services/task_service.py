@@ -31,6 +31,8 @@ def create_task_service(
         title=task.title,
         description=task.description,
         completed=task.completed,
+        priority=task.priority,
+        estimated_time=task.estimated_time,
         user_id=user.id
     )
 
@@ -146,6 +148,8 @@ def update_task_service(
     existing_task.title = task.title
     existing_task.description = task.description
     existing_task.completed = task.completed
+    existing_task.priority = task.priority
+    existing_task.estimated_time = task.estimated_time
 
     db.commit()
     db.refresh(existing_task)

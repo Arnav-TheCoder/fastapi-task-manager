@@ -4,8 +4,15 @@ function TaskList({
   tasks,
   onDelete,
   onToggleComplete,
-  onUpdate,
 }) {
+  if (tasks.length === 0) {
+    return (
+      <p className="status-message">
+        No tasks found.
+      </p>
+    );
+  }
+
   return (
     <div className="task-list">
       {tasks.map((task) => (
@@ -14,7 +21,6 @@ function TaskList({
           task={task}
           onDelete={onDelete}
           onToggleComplete={onToggleComplete}
-          onUpdate={onUpdate}
         />
       ))}
     </div>
