@@ -1,88 +1,68 @@
-import { useState } from "react";
+import Button from "./Button";
+import Card from "./Card";
 
-function TaskItem({ task, onDelete, onToggleComplete, onUpdate }) {
-  const [isEditing, setIsEditing] = useState(false);
-  const [title, setTitle] = useState(task.title);
-  const [description, setDescription] = useState(task.description);
-
-  const handleToggle = () => {
-    onToggleComplete(task);
-  };
-
-  const handleSave = async () => {
-    if (!title.trim()) {
-      return;
-    }
-
-    const updatedTask = {
-      ...task,
-      title: title.trim(),
-      description: description.trim(),
-    };
-
-    const success = await onUpdate(updatedTask);
-
-    if (success) {
-      setIsEditing(false);
-    }
-  };
-
-  const handleCancel = () => {
-    setTitle(task.title);
-    setDescription(task.description);
-    setIsEditing(false);
-  };
-
+function TaskItem({
+  task,
+  onDelete,
+  onToggleComplete,
+}) {
   return (
-    <div className="task-item">
-      {isEditing ? (
-        <div>
-          <input
-            type="text"
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-          />
+    <Card className="task-item">
+      <div className="task-content">
+        <h3>{task.title}</h3>
 
-          <textarea
-            value={description}
-            onChange={(event) => setDescription(event.target.value)}
-          />
+        <p>
+          {task.description || "No description"}
+        </p>
 
-          <button onClick={handleSave}>
-            Save
-          </button>
+        <span
+          className={
+            task.completed
+              ? "task-status completed"
+              : "task-status pending"
+          }
+        >
+          {task.completed
+            ? "Completed"
+            : "Pending"}
+        </span>
 
-          <button onClick={handleCancel}>
-            Cancel
-          </button>
-        </div>
-      ) : (
-        <div>
-          <h3>{task.title}</h3>
-          <p>{task.description}</p>
+        <div className="task-ai-info">
+          <span>
+            Priority:{" "}
+            {task.priority || "Medium"}
+          </span>
 
           <span>
-            {task.completed ? "Completed" : "Pending"}
+            Estimated Time:{" "}
+            {task.estimated_time ||
+              "Not estimated"}
           </span>
         </div>
-      )}
+      </div>
 
-      {!isEditing && (
-        <div>
-          <button onClick={handleToggle}>
-            {task.completed ? "Undo" : "Complete"}
-          </button>
+      <div className="task-actions">
+        <Button
+          variant="secondary"
+          onClick={() =>
+            onToggleComplete(task)
+          }
+        >
+          {task.completed
+            ? "Mark Pending"
+            : "Complete"}
+        </Button>
 
-          <button onClick={() => setIsEditing(true)}>
-            Edit
-          </button>
-
-          <button onClick={() => onDelete(task.id)}>
-            Delete
-          </button>
-        </div>
-      )}
-    </div>
+        <Button
+          variant="danger"
+          onClick={() =>
+            onDelete(task.id)
+          }
+        >
+          Delete
+        </Button>
+      </div>
+    </Card>
   );
 }
 

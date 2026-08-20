@@ -173,7 +173,33 @@ Authorization: Bearer <token>
 
 ## AI Integration
 
-The Task Management System includes an AI-powered task description suggestion feature using Ollama and the Qwen2.5 3B local language model.
+The Task Management System includes AI-powered task analysis using Ollama and the Qwen2.5 3B local language model.
+
+### AI Features
+
+- AI-generated task descriptions
+- Task priority suggestion
+- Estimated task completion time
+- Local AI inference using Ollama
+- AI results stored with tasks in PostgreSQL
+
+### AI Workflow
+
+1. User enters a task title and description.
+2. React sends the task information to FastAPI.
+3. FastAPI sends a structured prompt to Ollama.
+4. Qwen2.5 3B analyzes the task.
+5. AI returns priority and estimated completion time.
+6. FastAPI returns the AI results to React.
+7. The results are stored with the task in PostgreSQL.
+
+### AI Stack
+
+- Ollama
+- Qwen2.5 3B
+- FastAPI
+- React
+- PostgreSQL
 
 ### How It Works
 
@@ -222,6 +248,7 @@ Make sure Ollama is running before using the AI feature.
 |  Method | Endpoint | Description |
 | ------ | ----------- | ----------------- |
 |  POST |  /ai/suggest-description | Generate an AI-powered task description |
+|  POST |  /ai/analyze-task        | Analyze task priority and estimated completion time |
 
 ### Testing
 

@@ -1,89 +1,123 @@
 import { useState } from "react";
+import Input from "./Input";
+import Button from "./Button";
+import Card from "./Card";
 
 function Register() {
-  const [form, setForm] = useState({
-    username: "",
-    email: "",
-    password: "",
-  });
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
+  const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
 
-  const handleChange = (e) => {
-    setForm({
-      ...form,
-      [e.target.name]: e.target.value,
-    });
-  };
+  const handleSubmit = async (event) => {
+    event.preventDefault();
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+    setLoading(true);
     setMessage("");
+    setError("");
 
     try {
-      const response = await fetch("http://127.0.0.1:8000/users", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(form),
-      });
+      const response = await fetch(
+        "http://127.0.0.1:8000/users",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            username,
+            email,
+            password,
+          }),
+        }
+      );
 
       const data = await response.json();
 
       if (!response.ok) {
-        setMessage(data.detail || "Registration failed");
-        return;
+        throw new Error(
+          data.detail || "Registration failed"
+        );
       }
 
-      setMessage("Registration successful!");
-      setForm({
-        username: "",
-        email: "",
-        password: "",
-      });
+      setMessage("Registration successful. You can now log in.");
+
+      setUsername("");
+      setEmail("");
+      setPassword("");
     } catch (error) {
-      setMessage("Could not connect to the server");
+      console.error(error);
+      setError(error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div>
-      <h2>Register</h2>
+    <Card className="auth-card">
+      <h2>Create Account</h2>
 
-      <form onSubmit={handleSubmit}>
-        <input
-          type="text"
-          name="username"
-          placeholder="Username"
-          value={form.username}
-          onChange={handleChange}
+      <form
+        onSubmit={handleSubmit}
+        className="auth-form"
+      >
+        <Input
+          label="Username"
+          value={username}
+          onChange={(event) =>
+            setUsername(event.target.value)
+          }
+          placeholder="Choose a username"
           required
         />
 
-        <input
+        <Input
+          label="Email"
           type="email"
-          name="email"
-          placeholder="Email"
-          value={form.email}
-          onChange={handleChange}
+          value={email}
+          onChange={(event) =>
+            setEmail(event.target.value)
+          }
+          placeholder="Enter your email"
           required
         />
 
-        <input
+        <Input
+          label="Password"
           type="password"
-          name="password"
-          placeholder="Password"
-          value={form.password}
-          onChange={handleChange}
+          value={password}
+          onChange={(event) =>
+            setPassword(event.target.value)
+          }
+          placeholder="Choose a password"
           required
         />
 
-        <button type="submit">Register</button>
-      </form>
+        {error && (
+          <p className="error-message">
+            {error}
+          </p>
+        )}
 
-      {message && <p>{message}</p>}
-    </div>
+        {message && (
+          <p className="success-message">
+            {message}
+          </p>
+        )}
+
+        <Button
+          type="submit"
+          disabled={loading}
+        >
+          {loading
+            ? "Creating Account..."
+            : "Register"}
+        </Button>
+      </form>
+    </Card>
   );
 }
 
