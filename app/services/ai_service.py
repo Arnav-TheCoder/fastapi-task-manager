@@ -1,12 +1,108 @@
-import requests
+from groq import Groq
+import os
+import re
 import json
+from dotenv import load_dotenv
 
-from app.config import OLLAMA_URL, OLLAMA_MODEL
+load_dotenv()
+
+client = Groq(
+    api_key=os.getenv("GROQ_API_KEY")
+)
+
+MODEL = os.getenv(
+    "GROQ_MODEL",
+    "openai/gpt-oss-20b"
+)
 
 
-def generate_task_analysis(title: str, description: str):
+def clean_ai_text(text: str) -> str:
+    text = text.strip()
+
+    # Remove markdown code fences if the model adds them
+    text = re.sub(
+        r"^```(?:text|markdown)?\s*",
+        "",
+        text,
+        flags=re.IGNORECASE
+    )
+
+    text = re.sub(
+        r"\s*```$",
+        "",
+        text
+    )
+
+    return text.strip()
+
+
+def suggest_description_service(title: str):
+
     prompt = f"""
-Analyze the following task.
+Create a short, practical task description.
+
+Task title: {title}
+
+Rules:
+- Return ONLY the description.
+- Write 1 to 3 sentences.
+- Be specific and useful.
+- Do not use headings.
+- Do not use bullet points.
+- Do not include a due date.
+"""
+
+    try:
+        response = client.chat.completions.create(
+            model=MODEL,
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You generate concise task descriptions. "
+                        "Always return a non-empty description."
+                    )
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            temperature=0.3,
+            max_tokens=150
+        )
+
+        result = response.choices[0].message.content
+
+        if not result:
+            raise ValueError(
+                "AI returned an empty response"
+            )
+
+        result = clean_ai_text(result)
+
+        if not result:
+            raise ValueError(
+                "AI returned an empty description"
+            )
+
+        return result
+
+    except Exception as error:
+        print("AI description error:", error)
+
+        return (
+            f"Complete the task: {title.strip()}."
+        )
+
+
+def generate_task_analysis(
+    title: str,
+    description: str
+):
+
+    prompt = f"""
+Analyze this task.
 
 Task title:
 {title}
@@ -14,17 +110,17 @@ Task title:
 Task description:
 {description}
 
-Return ONLY valid JSON in this exact format:
+Return ONLY valid JSON:
 
 {{
     "priority": "High",
     "estimated_time": "2 hours"
 }}
 
-Priority must be exactly one of:
-High, Medium, Low
+Priority must be exactly:
+High, Medium, or Low
 
-Estimated time should be a short human-readable value such as:
+Estimated time must be a short value such as:
 30 minutes
 1 hour
 2 hours
@@ -34,34 +130,46 @@ Estimated time should be a short human-readable value such as:
 
 Do not include markdown.
 Do not include explanations.
-Return only JSON.
 """
 
     try:
-        response = requests.post(
-            OLLAMA_URL,
-            json={
-                "model": OLLAMA_MODEL,
-                "prompt": prompt,
-                "stream": False
-            },
-            timeout=120
+        response = client.chat.completions.create(
+            model=MODEL,
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You analyze tasks and return valid JSON only."
+                    )
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            temperature=0.2,
+            max_tokens=100
         )
 
-        response.raise_for_status()
+        raw_response = (
+            response.choices[0].message.content or ""
+        ).strip()
 
-        data = response.json()
+        # Remove markdown fences if present
+        raw_response = re.sub(
+            r"^```json\s*",
+            "",
+            raw_response,
+            flags=re.IGNORECASE
+        )
 
-        raw_response = data.get("response", "").strip()
+        raw_response = re.sub(
+            r"\s*```$",
+            "",
+            raw_response
+        ).strip()
 
-        try:
-            result = json.loads(raw_response)
-
-        except json.JSONDecodeError:
-            return {
-                "priority": "Medium",
-                "estimated_time": "Unknown"
-            }
+        result = json.loads(raw_response)
 
         priority = result.get(
             "priority",
@@ -73,7 +181,11 @@ Return only JSON.
             "Unknown"
         )
 
-        if priority not in ["High", "Medium", "Low"]:
+        if priority not in [
+            "High",
+            "Medium",
+            "Low"
+        ]:
             priority = "Medium"
 
         return {
@@ -82,44 +194,9 @@ Return only JSON.
         }
 
     except Exception as error:
-        print("AI error:", error)
+        print("AI analysis error:", error)
 
         return {
             "priority": "Medium",
             "estimated_time": "Unknown"
         }
-
-
-def suggest_description_service(title: str):
-    prompt = f"""
-Create a short and useful task description for this task:
-
-{title}
-
-Return only the description.
-"""
-
-    try:
-        response = requests.post(
-            OLLAMA_URL,
-            json={
-                "model": OLLAMA_MODEL,
-                "prompt": prompt,
-                "stream": False
-            },
-            timeout=120
-        )
-
-        response.raise_for_status()
-
-        data = response.json()
-
-        return data.get(
-            "response",
-            ""
-        ).strip()
-
-    except Exception as error:
-        print("AI error:", error)
-
-        return "Unable to generate description."
