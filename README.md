@@ -67,6 +67,19 @@ Ollama API
        ↓
 Qwen2.5 3B
 ```
+
+## Production Architecture
+```text
+React Frontend
+        ↓
+      Vercel
+        ↓
+   FastAPI Backend
+        ↓
+      Render
+        ↓
+   PostgreSQL
+```
 ## Project Structure
 ```text
 fastapi-task-manager/
@@ -266,6 +279,28 @@ The React frontend can be used to test:
 - Task completion
 - Task deletion
 
+## Deployment
+
+### Backend
+
+Hosted on Render.
+
+Backend URL:
+```bash
+https://fastapi-taskmanager-yrw6.onrender.com/
+```
+API Documentation:
+```bash
+https://fastapi-taskmanager-yrw6.onrender.com//docs
+```
+### Frontend
+
+Hosted on Vercel.
+
+Frontend URL:
+```bash
+https://fastapi-task-manager-sigma.vercel.app/
+```
 ## Future Improvements
 - Add AI-powered task priority and category suggestions.
 - Implement due dates, reminders, and notifications.
