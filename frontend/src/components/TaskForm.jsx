@@ -24,7 +24,7 @@ function TaskForm({ onTaskCreated }) {
 
     try {
       const response = await fetch(
-        "http://127.0.0.1:8000/ai/suggest-description",
+        `${import.meta.env.VITE_API_URL}/ai/suggest-description`,
         {
           method: "POST",
           headers: {
@@ -66,7 +66,7 @@ function TaskForm({ onTaskCreated }) {
 
     try {
       const response = await fetch(
-        "http://127.0.0.1:8000/ai/analyze-task",
+        `${import.meta.env.VITE_API_URL}/ai/analyze-task`,
         {
           method: "POST",
           headers: {
@@ -120,7 +120,7 @@ function TaskForm({ onTaskCreated }) {
       };
 
       const response = await fetch(
-        "http://127.0.0.1:8000/tasks",
+        `${import.meta.env.VITE_API_URL}/tasks`,
         {
           method: "POST",
           headers: {

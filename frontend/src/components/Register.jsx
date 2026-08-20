@@ -21,7 +21,7 @@ function Register() {
 
     try {
       const response = await fetch(
-        "http://127.0.0.1:8000/users",
+        `${import.meta.env.VITE_API_URL}/users`,
         {
           method: "POST",
           headers: {

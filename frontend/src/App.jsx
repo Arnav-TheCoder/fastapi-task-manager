@@ -47,7 +47,7 @@ function App() {
 
     try {
       const response = await fetch(
-        "http://127.0.0.1:8000/protected",
+        `${import.meta.env.VITE_API_URL}/protected`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -99,7 +99,7 @@ function App() {
         }
 
         const response = await fetch(
-          `http://127.0.0.1:8000/tasks?${params.toString()}`,
+          `${import.meta.env.VITE_API_URL}/tasks?${params.toString()}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -148,7 +148,7 @@ function App() {
 
     try {
       const response = await fetch(
-        `http://127.0.0.1:8000/tasks/${taskId}`,
+        `${import.meta.env.VITE_API_URL}/tasks/${taskId}`,
         {
           method: "DELETE",
           headers: {
@@ -178,7 +178,7 @@ function App() {
 
     try {
       const response = await fetch(
-        `http://127.0.0.1:8000/tasks/${task.id}`,
+        `${import.meta.env.VITE_API_URL}/tasks/${task.id}`,
         {
           method: "PUT",
           headers: {
